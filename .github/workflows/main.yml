@@ -56,15 +56,20 @@ jobs:
         shell: powershell
         run: |
           mkdir "$env:USERPROFILE\.ssh" -Force
-          "${{ secrets.VPS_KEY }}" | Out-File "$env:USERPROFILE\.ssh\id_rsa" -Encoding ascii
+          $key = "${{ secrets.VPS_KEY }}"
+          $key = $key -replace ' ', "`n"
+          $key | Out-File "$env:USERPROFILE\.ssh\id_rsa" -Encoding ascii -NoNewline
           icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r
           icacls "$env:USERPROFILE\.ssh\id_rsa" /grant:r "${env:USERNAME}:(F)"
       - name: Restore Data dari VPS
         shell: powershell
         run: |
-          scp -o StrictHostKeyChecking=no -r ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/ C:\rdp-data\ 2>$null
-          Write-Host "Data restored!"
-
+          $result = ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo connected" 2>&1
+          if ($result -eq "connected") {
+            scp -o StrictHostKeyChecking=no -r ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/ C:\rdp-data\
+            Write-Host "Data restored!"
+          } else {
+            Write-Host "No backup found or VPS unreachable, fresh start"
       - name: Show Connection Info
         shell: powershell
         run: |
