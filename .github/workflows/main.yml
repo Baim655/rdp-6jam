@@ -57,8 +57,8 @@ jobs:
         run: |
           mkdir "$env:USERPROFILE\.ssh" -Force
           "${{ secrets.VPS_KEY }}" | Out-File "$env:USERPROFILE\.ssh\id_rsa" -Encoding ascii
-          icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
-
+          icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r
+          icacls "$env:USERPROFILE\.ssh\id_rsa" /grant:r "${env:USERNAME}:(F)"
       - name: Restore Data dari VPS
         shell: powershell
         run: |
