@@ -2,6 +2,8 @@ name: Windows Remote Access
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
 
 jobs:
   remote-access:
@@ -24,8 +26,8 @@ jobs:
           if (-not (Get-LocalUser -Name "RDP2" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "RDP2" -Password $password -AccountNeverExpires
           }
-          Add-LocalGroupMember -Group "Administrators" -Member "RDP2"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP2"
+          Add-LocalGroupMember -Group "Administrators" -Member "RDP2" -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP2" -ErrorAction SilentlyContinue
           echo "USERNAME=RDP2" >> $env:GITHUB_ENV
           echo "PASSWORD=Baim123" >> $env:GITHUB_ENV
 
@@ -45,6 +47,24 @@ jobs:
           $ip = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
           echo "TS_IP=$ip" >> $env:GITHUB_ENV
 
+      - name: Install OpenSSH
+        shell: powershell
+        run: |
+          Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+
+      - name: Setup SSH Key
+        shell: powershell
+        run: |
+          mkdir "$env:USERPROFILE\.ssh" -Force
+          "${{ secrets.VPS_KEY }}" | Out-File "$env:USERPROFILE\.ssh\id_rsa" -Encoding ascii
+          icacls "$env:USERPROFILE\.ssh\id_rsa" /inheritance:r /grant:r "$env:USERNAME:F"
+
+      - name: Restore Data dari VPS
+        shell: powershell
+        run: |
+          scp -o StrictHostKeyChecking=no -r ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/ C:\rdp-data\ 2>$null
+          Write-Host "Data restored!"
+
       - name: Show Connection Info
         shell: powershell
         run: |
@@ -56,8 +76,14 @@ jobs:
           Write-Host "===================================="
           Write-Host ""
 
-      - name: Keep Runner Alive
+      - name: Keep Alive + Auto Backup
         shell: powershell
         run: |
           Write-Host "Runner will stay active for 6 hours..."
-          Start-Sleep -Seconds 21600
+          $endTime = (Get-Date).AddMinutes(330)
+          while ((Get-Date) -lt $endTime) {
+            Start-Sleep -Seconds 1800
+            Write-Host "Backing up data to VPS..."
+            scp -o StrictHostKeyChecking=no -r C:\rdp-data\ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/
+            Write-Host "Backup done!"
+          }
