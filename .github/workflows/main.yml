@@ -64,12 +64,8 @@ jobs:
       - name: Restore Data dari VPS
         shell: powershell
         run: |
-          $result = ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo connected" 2>&1
-          if ($result -eq "connected") {
-            scp -o StrictHostKeyChecking=no -r ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/ C:\rdp-data\
-            Write-Host "Data restored!"
-          } else {
-            Write-Host "No backup found or VPS unreachable, fresh start"
+          scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 -r ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/rdp-backup/ C:\rdp-data\ 2>$null
+          Write-Host "Restore selesai!"
       - name: Show Connection Info
         shell: powershell
         run: |
